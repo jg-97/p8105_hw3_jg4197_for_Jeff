@@ -1,0 +1,230 @@
+---
+title: "p8105_hw3_jg4197"
+author: "Jin Ge"
+date: "10/5/2019"
+output: github_document
+---
+
+## Exploration of instacart dataset
+
+```{r problem 1, message = FALSE}
+# open the packages and dataset
+library(p8105.datasets)
+library(tidyverse)
+data("instacart")
+
+# get knowledge of each variable
+names(instacart)
+
+# the number of aisles
+instacart %>% 
+  summarise(n_unique = n_distinct(aisle_id))
+## there are 134 different aisles 
+
+# the aisle with the most items ordered
+instacart %>% 
+  count(aisle) %>% 
+  arrange(n = desc(n)) %>% 
+  head(1)
+## fresh vegetables have the most ordered items with n = 150609
+
+
+
+# make a plot showing the number of items vs aisle
+
+## create a data frame containing aisle names information
+aisle_dat <- instacart %>% 
+  select(aisle_id, aisle) %>% 
+  distinct(aisle, .keep_all = TRUE) %>% 
+  arrange(aisle_id)
+
+## pic a scatterplot
+instacart %>% 
+  count(aisle_id) %>% 
+  left_join(aisle_dat, by = "aisle_id") %>% 
+  filter(n > 10000) %>% 
+  ggplot(aes(x = aisle_id, y = n)) +
+  geom_point(aes(color = aisle), 
+             alpha = .5) +
+  labs(
+    title = "The plot of the number of aisles with above 10000 items ordered",
+    x = "Aisle Code",
+    y = "The Number of Items Ordered(10^4)"
+  ) +
+  scale_x_continuous(
+    breaks = c(0, 50, 100, 135)
+  ) + 
+  scale_y_continuous(
+    breaks = c(40000, 80000, 120000),
+    labels = c("4", "8", "12")
+  ) +
+  theme(legend.position = "bottom")
+## x-aixs showing the different aisles and y-axis showing the count of each aisle. Two products are evident from other products on high number of orders in this type of products.
+
+
+# a table with 3 most popular items in each aisle
+instacart %>% 
+  select(aisle, product_name) %>% 
+  filter(aisle %in% c("baking ingredients", 
+                      "dog food care", 
+                      "packaged vegetables fruits")) %>% 
+  group_by(aisle, product_name) %>% 
+  summarise(count = n()) %>%
+  mutate(rank = order(
+    order(count, product_name, decreasing = TRUE)
+  )) %>% 
+  filter(rank %in% c("1", "2", "3")) %>% 
+  pivot_wider(aisle:count,
+              names_from = "product_name",
+              values_from = "count", 
+              values_fill = list(count = 0)) %>% 
+  knitr::kable()
+## Since each aisle sends different items, the missing value should be zero meaning that this item is not sent by this aisle
+
+
+# a table with mean hour at two items ordered
+instacart %>% 
+  select(product_name, order_dow, order_hour_of_day) %>% 
+  mutate(order_dow = recode(order_dow, `0` = "Mon",
+                            `1` = "Tues",
+                            `2` = "Wed",
+                            `3` = "Thur",
+                            `4` = "Fri",
+                            `5` = "Sat",
+                            `6` = "Sun")) %>% 
+  filter(product_name %in% c("Pink Lady Apples", 
+                             "Coffee Ice Cream")) %>% 
+  group_by(product_name, order_dow) %>% 
+  summarise(mean_hour_day = mean(order_hour_of_day)) %>% 
+  pivot_wider(product_name:mean_hour_day,
+              names_from = "order_dow",
+              values_from = "mean_hour_day") %>% 
+  knitr::kable()
+
+## this is a 2*7 table showing the mean hour in each day of a week
+
+```
+The size of *instacart* dataset is `r dim(instacart)` and the column types are `r class(instacart)`. The variable names are `r names(instacart)`. The key variables in this questions are _aisle_ showing different passages conveying different types of products, _product_name_ showing the product types bought by people, _order_hour_of_day_ showing the time of the order, _order_dow_ showing the day of the week. _reordered_ is a binary variable to describle whether this product is reordered by this customer.
+
+
+
+## Exploration of BRFSS dataset
+
+```{r problem 2, message = FALSE}
+# clean the data 
+brfss <- p8105.datasets::brfss_smart2010 %>%
+  janitor::clean_names() %>% 
+  filter(topic == "Overall Health",
+         response %in% c("Excellent", "Very good",
+                         "Good", "Fair", "Poor")) %>% 
+  mutate(response = factor(response, levels = c("Poor", "Fair", "Good",
+                                                "Very good", "Excellent")
+                           ))
+head(brfss, 3)
+
+
+# the states observed at 7 or more location in 2002
+brfss %>% 
+  select(year, locationabbr, locationdesc) %>% 
+  filter(year == "2002") %>% 
+  group_by(locationabbr) %>% 
+  summarise(n_place = n()) %>% 
+  filter(n_place >= 7) %>% 
+  pull(locationabbr)
+
+# the states observed at 7 or more location in 2010
+brfss %>% 
+  select(year, locationabbr, locationdesc) %>% 
+  filter(year == "2010") %>% 
+  group_by(locationabbr) %>% 
+  summarise(n_place = n()) %>% 
+  filter(n_place >= 7) %>% 
+  pull(locationabbr)
+
+# construct a new dataset and make a plot
+brfss %>% 
+  filter(response == "Excellent") %>% 
+  select(year, state = locationabbr, data_value) %>% 
+  group_by(year, state) %>% 
+  summarise(mean_data_value = mean(data_value)) %>% 
+  ggplot(aes(x = year, y = mean_data_value, color = state)) +
+  geom_point(alpha = .5) + geom_line(alpha = .8) + theme_classic() +
+  scale_x_continuous(
+    breaks = c(2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010)
+  ) +
+  labs(
+    title = "Average Excellent Health Data Across Years in Each State",
+    x = "Year",
+    y = "Average values of excellent health",
+    caption = "Data from BRFSS"
+  ) 
+
+## The plot shows the change of each state's number of excellent heath report across year
+
+# two-panel plot for NY in 2006 and 2010
+brfss %>% 
+  filter(year %in% c("2006", "2010"),
+         locationabbr == "NY") %>% 
+  select(year, response, locationdesc, data_value) %>% 
+  ggplot(aes(x = response, y = data_value, color = response)) +
+  geom_boxplot(aes(fill = response), alpha = .5) +
+  facet_grid(~year) +
+  labs(
+    title = "Health Conditon in New York in 2006 and 2010",
+    x = "Response level", 
+    y = "Health data values",
+    caption = "Data from BRFSS"
+  )
+## This plot shows the values about health behavior reporting in five ersponse levels in two years
+```
+
+
+## exploration of a dataset about accelerometers
+
+```{r problem 3, message = FALSE}
+# load and tidy dataset
+accel_dat <- read_csv("./original dataset/accel_data.csv") %>%
+  janitor::clean_names() %>% 
+  pivot_longer(activity_1:activity_1440, 
+               names_to = "activity_minute",
+               values_to = "accel_value") %>% 
+  mutate(week_or_work = case_when(
+    day %in% c("Saturday", "Sunday") ~ "weekend",
+    day %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday") ~ "workday",
+    TRUE ~ ""
+  ),
+  week = as.character(week),
+  week_or_work = factor(week_or_work))
+## Description on this dataset is in inline R code at the end of this chunk. week_or_work variable is binary and a factor variable with two levels
+
+
+# create a table showing total activity of a day
+accel_dat %>% 
+  select(day_id, accel_value) %>% 
+  group_by(day_id) %>% 
+  summarise(activity_total_val = sum(accel_value)) %>% 
+  knitr::kable()
+## According to solely watching, It is hard to find a trend in it
+
+
+# a graph showing 24-hour activity vs day
+accel_dat %>% 
+  select(day_id, accel_value) %>% 
+  group_by(day_id) %>% 
+  summarise(activity_total_val = sum(accel_value)) %>%
+  left_join(accel_dat, by = "day_id") %>% 
+  select(day_id, activity_total_val, week) %>% 
+  distinct(day_id, activity_total_val, week, .keep_all = TRUE) %>% 
+  ggplot(aes(x = day_id, y = activity_total_val, color = week)) +
+  geom_boxplot(aes(fill = week), alpha = .5) +
+  scale_x_continuous(breaks = c(0, 7, 14, 21, 28, 35)) +
+  labs(
+    title = "Boxplot of Acceleromator Data for Five Weeks",
+    x = "Nmuber of the day",
+    y = "Activity values over a day",
+    caption = "Data from CUMC"
+  ) 
+## The trend is like a wave on a week scale and the range becomes larger, but still have a balance
+  
+```
+The total observations in *accel_dat* is `r count(select(accel_dat, accel_value))`. The variables in this data frame is `r names(accel_dat)`. The structure of this data frame is `r dim(accel_dat)`.
