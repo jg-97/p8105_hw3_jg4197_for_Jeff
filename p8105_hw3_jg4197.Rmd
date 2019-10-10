@@ -7,11 +7,18 @@ output: github_document
 
 ## Exploration of instacart dataset
 
-```{r problem 1, message = FALSE}
+```{r problem 1}
+# set some parameters in this prj
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE,
+                      fig.width = 8,
+                      fig.height = 6)
+
 # open the packages and dataset
 library(p8105.datasets)
 library(tidyverse)
 data("instacart")
+
 
 # get knowledge of each variable
 names(instacart)
@@ -58,8 +65,9 @@ instacart %>%
     breaks = c(40000, 80000, 120000),
     labels = c("4", "8", "12")
   ) +
-  theme(legend.position = "bottom")
-## x-aixs showing the different aisles and y-axis showing the count of each aisle. Two products are evident from other products on high number of orders in this type of products.
+  theme(legend.position = "right", 
+        text = element_text(size = 7))
+## x-axis showing the different aisles and y-axis showing the count of each aisle. Two products are evident from other products on high number of orders in this type of products.
 
 
 # a table with 3 most popular items in each aisle
@@ -69,23 +77,21 @@ instacart %>%
                       "dog food care", 
                       "packaged vegetables fruits")) %>% 
   group_by(aisle, product_name) %>% 
-  summarise(count = n()) %>%
-  mutate(rank = order(
-    order(count, product_name, decreasing = TRUE)
-  )) %>% 
+  summarise(count = n()) %>% 
+  mutate(rank = min_rank(desc(count))) %>% 
   filter(rank %in% c("1", "2", "3")) %>% 
-  pivot_wider(aisle:count,
-              names_from = "product_name",
-              values_from = "count", 
-              values_fill = list(count = 0)) %>% 
+  arrange(aisle, rank) %>% 
+  select(aisle, product_name, sum_orders = count) %>% 
   knitr::kable()
-## Since each aisle sends different items, the missing value should be zero meaning that this item is not sent by this aisle
+## We can see that the top 3 items in baking ingredients aisle are 'light brown sugar', 'pure baking soda' and 'cane sugar'. top 3 items in dog food care are 'snack sticks chicken & rice recipe dog treats', 'organix chicken & brown rice recipe'. Top 3 in apckages vegetables fruits aisle are 'organic baby spinach', 'organic raspberries' and 'organic blueberries'.
+
 
 
 # a table with mean hour at two items ordered
 instacart %>% 
   select(product_name, order_dow, order_hour_of_day) %>% 
-  mutate(order_dow = recode(order_dow, `0` = "Mon",
+  mutate(order_dow = factor(order_dow),
+    order_dow = recode(order_dow, `0` = "Mon",
                             `1` = "Tues",
                             `2` = "Wed",
                             `3` = "Thur",
@@ -101,7 +107,7 @@ instacart %>%
               values_from = "mean_hour_day") %>% 
   knitr::kable()
 
-## this is a 2*7 table showing the mean hour in each day of a week
+## this is a 2*7 table showing the mean hour in each day of a week. Orders for coffee ice cream have a peak on wednesday, thursday and friday, while orders for pink lady apples have a peak on monday. Overall, the mean of each product is stable.
 
 ```
 The size of *instacart* dataset is `r dim(instacart)` and the column types are `r class(instacart)`. The variable names are `r names(instacart)`. The key variables in this questions are _aisle_ showing different passages conveying different types of products, _product_name_ showing the product types bought by people, _order_hour_of_day_ showing the time of the order, _order_dow_ showing the day of the week. _reordered_ is a binary variable to describle whether this product is reordered by this customer.
@@ -110,7 +116,7 @@ The size of *instacart* dataset is `r dim(instacart)` and the column types are `
 
 ## Exploration of BRFSS dataset
 
-```{r problem 2, message = FALSE}
+```{r problem 2}
 # clean the data 
 brfss <- p8105.datasets::brfss_smart2010 %>%
   janitor::clean_names() %>% 
@@ -144,20 +150,22 @@ brfss %>%
 # construct a new dataset and make a plot
 brfss %>% 
   filter(response == "Excellent") %>% 
-  select(year, state = locationabbr, data_value) %>% 
-  group_by(year, state) %>% 
+  select(year, State = locationabbr, data_value) %>% 
+  group_by(year, State) %>% 
   summarise(mean_data_value = mean(data_value)) %>% 
-  ggplot(aes(x = year, y = mean_data_value, color = state)) +
-  geom_point(alpha = .5) + geom_line(alpha = .8) + theme_classic() +
+  ggplot(aes(x = year, y = mean_data_value, color = State)) +
+  geom_point(alpha = .5) + geom_line(alpha = .8, size = .9) + 
+  theme_classic() +
   scale_x_continuous(
     breaks = c(2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010)
-  ) +
+    ) +
   labs(
     title = "Average Excellent Health Data Across Years in Each State",
     x = "Year",
     y = "Average values of excellent health",
     caption = "Data from BRFSS"
-  ) 
+  ) +
+  theme(text = element_text(size = 10))
 
 ## The plot shows the change of each state's number of excellent heath report across year
 
@@ -165,23 +173,24 @@ brfss %>%
 brfss %>% 
   filter(year %in% c("2006", "2010"),
          locationabbr == "NY") %>% 
-  select(year, response, locationdesc, data_value) %>% 
-  ggplot(aes(x = response, y = data_value, color = response)) +
-  geom_boxplot(aes(fill = response), alpha = .5) +
-  facet_grid(~year) +
+  select(year, response, County = locationdesc, Values = data_value) %>% 
+  ggplot(aes(x = response, y = Values, color = County)) +
+  geom_point(aes(fill = County, size = Values), alpha = .5) +
+  facet_grid(~ year) +
   labs(
-    title = "Health Conditon in New York in 2006 and 2010",
+    title = "Health Conditon reported by phone in New York in 2006 and 2010",
     x = "Response level", 
     y = "Health data values",
     caption = "Data from BRFSS"
-  )
-## This plot shows the values about health behavior reporting in five ersponse levels in two years
+  ) +
+  theme(text = element_text(size = 10))
+## This plot shows the values about health behavior reporting in five ersponse levels in two years. Overall, people in NY think their health is good or very good. By the year, Bronx has more people think their health is good
 ```
 
 
 ## exploration of a dataset about accelerometers
 
-```{r problem 3, message = FALSE}
+```{r problem 3}
 # load and tidy dataset
 accel_dat <- read_csv("./original dataset/accel_data.csv") %>%
   janitor::clean_names() %>% 
@@ -195,36 +204,37 @@ accel_dat <- read_csv("./original dataset/accel_data.csv") %>%
   ),
   week = as.character(week),
   week_or_work = factor(week_or_work))
+head(accel_dat, 5)
 ## Description on this dataset is in inline R code at the end of this chunk. week_or_work variable is binary and a factor variable with two levels
 
 
 # create a table showing total activity of a day
 accel_dat %>% 
-  select(day_id, accel_value) %>% 
-  group_by(day_id) %>% 
+  select(week, day, accel_value) %>% 
+  group_by(week, day) %>% 
   summarise(activity_total_val = sum(accel_value)) %>% 
   knitr::kable()
 ## According to solely watching, It is hard to find a trend in it
 
 
+
 # a graph showing 24-hour activity vs day
 accel_dat %>% 
-  select(day_id, accel_value) %>% 
-  group_by(day_id) %>% 
-  summarise(activity_total_val = sum(accel_value)) %>%
-  left_join(accel_dat, by = "day_id") %>% 
-  select(day_id, activity_total_val, week) %>% 
-  distinct(day_id, activity_total_val, week, .keep_all = TRUE) %>% 
-  ggplot(aes(x = day_id, y = activity_total_val, color = week)) +
-  geom_boxplot(aes(fill = week), alpha = .5) +
-  scale_x_continuous(breaks = c(0, 7, 14, 21, 28, 35)) +
+  select(week, Day = day, accel_value) %>% 
+  group_by(week, Day) %>% 
+  summarise(activity_mean_val = mean(accel_value)) %>% 
+  ggplot(aes(x = week, y = activity_mean_val, color = Day)) +
+  geom_point(aes(fill = Day), size = .8, alpha = .5) + geom_line(aes(group = Day), size = .9) +
+  theme_light() +
   labs(
-    title = "Boxplot of Acceleromator Data for Five Weeks",
-    x = "Nmuber of the day",
-    y = "Activity values over a day",
+    title = "Lines of Acceleromator Data for Five Weeks",
+    x = "Nmuber of the week",
+    y = "Avreage activity values over a day",
     caption = "Data from CUMC"
-  ) 
-## The trend is like a wave on a week scale and the range becomes larger, but still have a balance
+  ) +
+  theme(text = element_text(size = 10))
+## The trends in Monday and Friday have large difference and fluctuate evidently. Saturdays and Sundays are prone to decline in later weeks. Thursdays tend to increase while Tuesdays and Wednesdays are relatively stable. 
+
   
 ```
 The total observations in *accel_dat* is `r count(select(accel_dat, accel_value))`. The variables in this data frame is `r names(accel_dat)`. The structure of this data frame is `r dim(accel_dat)`.
