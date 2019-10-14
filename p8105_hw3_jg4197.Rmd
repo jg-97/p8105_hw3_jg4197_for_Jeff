@@ -7,7 +7,7 @@ output: github_document
 
 ## Exploration of instacart dataset
 
-```{r problem 1}
+```{r problem 1, message = FALSE}
 # set some parameters in this prj
 knitr::opts_chunk$set(message = FALSE,
                       warning = FALSE,
